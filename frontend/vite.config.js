@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// קובץ קונפיג מוכן לשימוש
 export default defineConfig({
   plugins: [react()],
   preview: {
     allowedHosts: [
-      "sales-frontend-z2m7.onrender.com"   
+      "sales-frontend-z2m7.onrender.com"  // הוספתי את הדומיין שלך
     ],
     host: '0.0.0.0',
     port: 10000
@@ -15,7 +16,7 @@ export default defineConfig({
     port: 5173
   },
   build: {
-    chunkSizeWarningLimit: 4000, 
+    chunkSizeWarningLimit: 2000,
     outDir: 'dist'
   }
 })
