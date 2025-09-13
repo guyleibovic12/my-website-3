@@ -102,3 +102,10 @@ def plan(req: PlanRequest):
             recommended_order=round(recommended, 2)
         ))
     return PlanResponse(rows=rows)
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
