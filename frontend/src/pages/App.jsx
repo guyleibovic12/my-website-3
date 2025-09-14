@@ -5,8 +5,8 @@ export default function App() {
   const [file, setFile] = useState(null);
   const [rows, setRows] = useState([]);
 
-  // ברירת מחדל לשמות עמודות
-  const [mapping] = useState({
+  // שים לב: חובה להגדיר שמות עמודות תואמים לקובץ שלך
+  const mapping = {
     date_col: "date",
     store_col: "store_id",
     sku_col: "sku",
@@ -16,7 +16,7 @@ export default function App() {
     gender_col: "gender",
     family_col: "family",
     sole_col: "sole",
-  });
+  };
 
   const onUpload = async () => {
     if (!file) {
@@ -26,7 +26,9 @@ export default function App() {
 
     try {
       const fd = new FormData();
-      fd.append("file", file); // חייב להיות בשם file
+      fd.append("file", file);
+
+      // חובה לשלוח את כל השדות שה־backend דורש
       Object.entries(mapping).forEach(([key, value]) => {
         fd.append(key, value);
       });
@@ -39,37 +41,17 @@ export default function App() {
         alert("שגיאה: " + res.data.error);
       } else {
         setRows(res.data.rows || []);
-        alert(`הקובץ נטען בהצלחה ✅ (${res.data.rows.length} שורות)`);
+        alert(`קובץ נטען בהצלחה ✅ (${res.data.rows.length} שורות)`);
       }
     } catch (err) {
-      console.error("Upload error:", err);
+      console.error("Upload error:", err.response || err);
       alert("שגיאה בהעלאת קובץ 🚨");
-    }
-  };
-
-  const onTrain = async () => {
-    try {
-      const res = await api.post("/train", { rows });
-      if (res.data.error) {
-        alert("שגיאה באימון: " + res.data.error);
-      } else {
-        const s = res.data.summary;
-        alert(
-          `אימון הושלם ✅\nסה"כ מכירות: ${s.total_sold}\nממוצע: ${s.avg_sales.toFixed(
-            2
-          )}\nתחזית לעונה הבאה: ${s.forecast_next_season}`
-        );
-      }
-    } catch (err) {
-      console.error("Train error:", err);
-      alert("שגיאה באימון 🚨");
     }
   };
 
   return (
     <div className="container">
       <h1>תחזית מכירות</h1>
-
       <div className="card">
         <h3>העלאת נתונים</h3>
         <input type="file" onChange={(e) => setFile(e.target.files[0])} />
@@ -77,16 +59,10 @@ export default function App() {
       </div>
 
       <div className="card">
-        <h3>פעולות</h3>
-        <button onClick={onTrain}>אימון מודלים</button>
-      </div>
-
-      <div className="card">
         <h3>תצוגת נתונים</h3>
         <pre style={{ maxHeight: 250, overflow: "auto" }}>
           {JSON.stringify(rows.slice(0, 5), null, 2)}
         </pre>
-        {rows.length > 5 && <p>... הוצגו 5 שורות ראשונות מתוך {rows.length}</p>}
       </div>
     </div>
   );
