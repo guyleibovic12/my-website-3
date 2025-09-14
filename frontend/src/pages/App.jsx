@@ -3,18 +3,20 @@ import api from "../api";
 
 export default function App() {
   const [file, setFile] = useState(null);
-  const [mapping, setMapping] = useState({
-    date: "date",
-    store_id: "store_id",
-    sku: "sku",
-    qty: "qty",
-    stock: "stock",
-    age: "age",
-    gender: "gender",
-    family: "family",
-    sole: "sole",
-  });
   const [rows, setRows] = useState([]);
+
+  // ברירת מחדל לשמות עמודות
+  const [mapping] = useState({
+    date_col: "date",
+    store_col: "store_id",
+    sku_col: "sku",
+    qty_col: "qty",
+    stock_col: "stock",
+    age_col: "age",
+    gender_col: "gender",
+    family_col: "family",
+    sole_col: "sole",
+  });
 
   const onUpload = async () => {
     if (!file) {
@@ -22,27 +24,26 @@ export default function App() {
       return;
     }
 
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("date_col", mapping.date);
-    fd.append("store_col", mapping.store_id);
-    fd.append("sku_col", mapping.sku);
-    fd.append("qty_col", mapping.qty);
-    fd.append("stock_col", mapping.stock);
-    fd.append("age_col", mapping.age);
-    fd.append("gender_col", mapping.gender);
-    fd.append("family_col", mapping.family);
-    fd.append("sole_col", mapping.sole);
-
     try {
+      const fd = new FormData();
+      fd.append("file", file); // חייב להיות בשם file
+      Object.entries(mapping).forEach(([key, value]) => {
+        fd.append(key, value);
+      });
+
       const res = await api.post("/ingest", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setRows(res.data.rows || []);
-      alert(`קובץ נטען בהצלחה! סה"כ ${res.data.rows.length} שורות`);
+
+      if (res.data.error) {
+        alert("שגיאה: " + res.data.error);
+      } else {
+        setRows(res.data.rows || []);
+        alert(`הקובץ נטען בהצלחה ✅ (${res.data.rows.length} שורות)`);
+      }
     } catch (err) {
-      console.error(err);
-      alert("שגיאה בהעלאת קובץ");
+      console.error("Upload error:", err);
+      alert("שגיאה בהעלאת קובץ 🚨");
     }
   };
 
@@ -51,17 +52,17 @@ export default function App() {
       const res = await api.post("/train", { rows });
       if (res.data.error) {
         alert("שגיאה באימון: " + res.data.error);
-        return;
+      } else {
+        const s = res.data.summary;
+        alert(
+          `אימון הושלם ✅\nסה"כ מכירות: ${s.total_sold}\nממוצע: ${s.avg_sales.toFixed(
+            2
+          )}\nתחזית לעונה הבאה: ${s.forecast_next_season}`
+        );
       }
-      const summary = res.data.summary;
-      alert(
-        `אימון הושלם ✅\nסה"כ מכירות: ${summary.total_sold}\nממוצע: ${summary.avg_sales.toFixed(
-          2
-        )}\nתחזית לעונה הבאה: ${summary.forecast_next_season}`
-      );
     } catch (err) {
-      console.error(err);
-      alert("שגיאה באימון");
+      console.error("Train error:", err);
+      alert("שגיאה באימון 🚨");
     }
   };
 
@@ -71,10 +72,7 @@ export default function App() {
 
       <div className="card">
         <h3>העלאת נתונים</h3>
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-        />
+        <input type="file" onChange={(e) => setFile(e.target.files[0])} />
         <button onClick={onUpload}>העלה</button>
       </div>
 
@@ -84,11 +82,11 @@ export default function App() {
       </div>
 
       <div className="card">
-        <h3>שורות שהועלו</h3>
-        <pre style={{ maxHeight: 200, overflow: "auto" }}>
-          {JSON.stringify(rows.slice(0, 10), null, 2)}
+        <h3>תצוגת נתונים</h3>
+        <pre style={{ maxHeight: 250, overflow: "auto" }}>
+          {JSON.stringify(rows.slice(0, 5), null, 2)}
         </pre>
-        {rows.length > 10 && <p>... הוצגו 10 שורות ראשונות מתוך {rows.length}</p>}
+        {rows.length > 5 && <p>... הוצגו 5 שורות ראשונות מתוך {rows.length}</p>}
       </div>
     </div>
   );
