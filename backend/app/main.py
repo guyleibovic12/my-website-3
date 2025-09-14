@@ -45,7 +45,6 @@ async def ingest(
         else:
             df = pd.read_csv(BytesIO(content))
 
-        # עמודות נדרשות + אופציונליות
         used_cols = [
             c
             for c in [
@@ -79,7 +78,7 @@ async def ingest(
 @app.post("/train")
 async def train(config: dict):
     """
-    'אימון' פשוט: חישוב מכירות מצטברות + תחזית לעונה הבאה
+    אימון פשוט – לקבל JSON עם rows
     """
     try:
         if "rows" not in config or not config["rows"]:
@@ -110,7 +109,7 @@ async def train(config: dict):
 @app.post("/forecast")
 async def forecast(config: dict):
     """
-    תחזית פיקטיבית על בסיס ממוצע הכמויות
+    תחזית פיקטיבית על בסיס JSON
     """
     try:
         if "rows" not in config or not config["rows"]:
