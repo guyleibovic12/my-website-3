@@ -111,3 +111,8 @@ export default function App() {
     </div>
   );
 }
+useEffect(() => {
+  ping()
+    .then(res => alert("החיבור עובד ✅ " + res.data.message))
+    .catch(() => alert("❌ אין חיבור לשרת"));
+}, []);
