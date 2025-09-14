@@ -34,9 +34,7 @@ async def ingest(
     family_col: str = Form(""),
     sole_col: str = Form(""),
 ):
-    """
-    קריאת קובץ Excel/CSV, החזרת רשומות ושמות עמודות
-    """
+    """קליטת קובץ Excel/CSV והחזרת נתונים ל-frontend"""
     try:
         content = await file.read()
 
@@ -61,14 +59,7 @@ async def ingest(
             if c and c in df.columns
         ]
 
-        if not used_cols:
-            return JSONResponse(
-                status_code=400,
-                content={"error": "לא נמצאו עמודות תואמות בקובץ"},
-            )
-
         rows = df[used_cols].to_dict(orient="records")
-
         return {"rows": rows, "columns": used_cols, "total_rows": len(rows)}
 
     except Exception as e:
@@ -76,15 +67,14 @@ async def ingest(
 
 
 @app.post("/train")
-async def train(config: dict):
-    """
-    אימון פשוט – לקבל JSON עם rows
-    """
+async def train(
+    rows: str = Form(...),
+):
+    """אימון פשוט על בסיס נתוני FormData"""
     try:
-        if "rows" not in config or not config["rows"]:
-            return {"error": "לא התקבלו נתונים לאימון"}
-
-        df = pd.DataFrame(config["rows"])
+        import json
+        rows = json.loads(rows)
+        df = pd.DataFrame(rows)
 
         if "qty" not in df.columns:
             return {"error": "עמודת qty חסרה"}
@@ -101,31 +91,27 @@ async def train(config: dict):
                 "forecast_next_season": forecast,
             },
         }
-
     except Exception as e:
         return {"error": str(e)}
 
 
 @app.post("/forecast")
-async def forecast(config: dict):
-    """
-    תחזית פיקטיבית על בסיס JSON
-    """
+async def forecast(
+    rows: str = Form(...),
+    horizon_days: int = Form(30),
+):
+    """תחזית לדוגמה"""
     try:
-        if "rows" not in config or not config["rows"]:
-            return {"error": "לא התקבלו נתונים לתחזית"}
-
-        df = pd.DataFrame(config["rows"])
+        import json
+        rows = json.loads(rows)
+        df = pd.DataFrame(rows)
 
         if "qty" not in df.columns:
             return {"error": "עמודת qty חסרה"}
 
         avg_sales = df["qty"].mean()
-        horizon = config.get("horizon_days", 30)
-
-        forecast_values = [int(avg_sales * (1 + i * 0.05)) for i in range(horizon)]
+        forecast_values = [int(avg_sales * (1 + i * 0.05)) for i in range(horizon_days)]
 
         return {"forecast": forecast_values}
-
     except Exception as e:
         return {"error": str(e)}
