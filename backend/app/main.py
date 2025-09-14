@@ -1,29 +1,42 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import io
 
 app = FastAPI()
 
-# בריאות
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+# אפשר גישה מה-frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # עדיף לשים את ה-URL של ה-frontend במקום *
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# העלאת קובץ
-@app.post("/upload")
-async def upload(file: UploadFile = File(...)):
-    contents = await file.read()
-    df = pd.read_excel(io.BytesIO(contents)) if file.filename.endswith(".xlsx") else pd.read_csv(io.BytesIO(contents))
-    return {
-        "rows": len(df),
-        "columns": list(df.columns)
-    }
+@app.get("/")
+def root():
+    return {"message": "Backend is running"}
 
-# תחזית פשוטה (placeholder)
-@app.post("/forecast")
-async def forecast():
-    return {
-        "message": "תחזית לדוגמה",
-        "expected_sales": 12345,
-        "recommended_stock": 15000
-    }
+@app.post("/ingest")
+async def ingest(file: UploadFile = File(...)):
+    try:
+        # קריאת הקובץ שהועלה
+        content = await file.read()
+
+        if file.filename.endswith(".xlsx"):
+            df = pd.read_excel(io.BytesIO(content))
+        elif file.filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            return {"error": "Only .xlsx or .csv files are supported"}
+
+        # החזרת מידע בסיסי
+        return {
+            "rows": len(df),
+            "columns": list(df.columns),
+            "preview": df.head(5).to_dict(orient="records")
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
