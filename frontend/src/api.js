@@ -19,3 +19,4 @@ export const forecast = (params) => api.post("/forecast", params).then(res => re
 export const plan = (params) => api.post("/plan", params).then(res => res.data);
 
 export default api;
+export const ping = () => api.get("/");
