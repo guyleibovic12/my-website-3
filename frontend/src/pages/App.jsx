@@ -1,71 +1,95 @@
-import React, { useEffect, useState } from 'react';
-import { health, ingest, train, forecast, plan } from '../api';
-import UploadCSV from '../components/UploadCSV.jsx';
-import ForecastChart from '../components/ForecastChart.jsx';
-import PlanTable from '../components/PlanTable.jsx';
+import React, { useState, useEffect } from 'react';
+import api from '../api';
+import UploadCSV from '../components/UploadCSV';
+import ForecastChart from '../components/ForecastChart';
+import PlanTable from '../components/PlanTable';
 
 export default function App() {
-  const [healthStatus, setHealthStatus] = useState(null);
+  const [health, setHealth] = useState(null);
   const [groups, setGroups] = useState([]);
-  const [preds, setPreds] = useState([]);
-  const [planRows, setPlanRows] = useState([]);
-  const [cfg, setCfg] = useState({ date_col: 'date', store_col: 'store_id', sku_col: '', target_col: 'qty', stock_col: '' });
+  const [cfg, setCfg] = useState({ date_col: 'date', store_col: 'store_id', qty_col: 'qty' });
+  const [summary, setSummary] = useState(null);   // נוספה שמירת פלט התחזית
 
+  // בדיקת תקינות השרת
   useEffect(() => {
-    health().then(res => setHealthStatus(res.message)).catch(() => setHealthStatus(null));
+    api.get('/')
+      .then((res) => setHealth(res.message))
+      .catch(() => setHealth(null));
   }, []);
 
+  // העלאת קובץ
   const onUpload = async (file, mapping) => {
     try {
-      const res = await ingest(file, mapping);
-      setGroups(res.groups || []);
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post('/ingest', fd, { params: mapping });
+      setGroups(res.data.groups || []);
       setCfg(mapping);
-      alert(`קובץ נטען בהצלחה. נמצאו ${res.groups?.length || 0} קבוצות`);
+      alert(`הועלו ${res.data.groups?.length || 0} קבוצות נתונים`);
     } catch (err) {
       alert("שגיאה בהעלאת קובץ");
+      console.error(err);
     }
   };
 
+  // אימון
   const onTrain = async () => {
     try {
-      const res = await train({ ...cfg, sku_col: cfg.sku_col || null });
-      alert(`אימון הושלם. מספר מודלים: ${res.models_trained}`);
-    } catch {
+      const body = { rows: groups };
+      const res = await api.post('/train', body);
+      if (res.data.error) {
+        alert("שגיאה באימון: " + res.data.error);
+      } else {
+        setSummary(res.data.summary);
+        alert("אימון הושלם בהצלחה!");
+      }
+    } catch (err) {
       alert("שגיאה באימון");
+      console.error(err);
     }
-  };
-
-  const onForecast = async () => {
-    const horizon = parseInt(prompt("כמה ימים קדימה לחזות?"), 10) || 14;
-    const store_id = prompt("סניף (רשות)") || null;
-    const sku = prompt("דגם/מק״ט (רשות)") || null;
-    const res = await forecast({ horizon_days: horizon, store_id, sku });
-    setPreds(res.predictions || []);
-  };
-
-  const onPlan = async () => {
-    const horizon = parseInt(prompt("כמה ימים קדימה לתכנון?"), 10) || 90;
-    const store_id = prompt("סניף (רשות)") || null;
-    const sku = prompt("דגם/מק״ט (רשות)") || null;
-    const res = await plan({ horizon_days: horizon, store_id, sku });
-    setPlanRows(res.rows || []);
   };
 
   return (
     <div className="container">
-      <h1>תחזית מכירות</h1>
-      <span>סטטוס שרת: {healthStatus || 'לא מחובר'}</span>
-
-      <UploadCSV onUpload={onUpload} />
-
-      <div>
-        <button onClick={onTrain}>אימון</button>
-        <button onClick={onForecast}>חזוי</button>
-        <button onClick={onPlan}>תכנון עונה</button>
+      <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1>תחזית מכירות</h1>
+        <span className="muted">סטטוס שרת: {health ? 'מחובר' : 'לא מחובר'}</span>
       </div>
 
-      <ForecastChart data={preds} />
-      <PlanTable rows={planRows} />
+      <div style={{ marginTop: 16 }} className="grid">
+        <UploadCSV onUpload={onUpload} />
+      </div>
+
+      <div className="card">
+        <h3>פעולות</h3>
+        <div className="row">
+          <button onClick={onTrain}>אימון מודלים</button>
+        </div>
+      </div>
+
+      {/* הצגת תוצאות התחזית */}
+      {summary && (
+        <div className="card">
+          <h3>סיכום תחזית</h3>
+          <ul>
+            <li>סה"כ נמכר: {summary.total_sold}</li>
+            <li>מכירה ממוצעת: {summary.avg_sales.toFixed(2)}</li>
+            <li>תחזית לעונה הבאה: {summary.forecast_next_season}</li>
+          </ul>
+        </div>
+      )}
+
+      {/* גרף + טבלה (לא חובה, אם יש לך קומפוננטות מוכנות) */}
+      <ForecastChart data={groups} />
+      <PlanTable rows={groups} />
+
+      <div className="card">
+        <h3>טיפים</h3>
+        <ul className="muted">
+          <li>אפשר לעבוד עם עמודות בעברית – רק לשים שהעמודות תואמות בקובץ.</li>
+          <li>העלאת נתונים טובה = תחזיות אמינות יותר (לפחות 6 חודשים של נתוני מכירות).</li>
+        </ul>
+      </div>
     </div>
   );
 }
